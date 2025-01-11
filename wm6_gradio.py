@@ -5,7 +5,7 @@ import wm6_get_text_from_media
 with gr.Blocks() as demo:
     with gr.Column(scale=2):
         t_audio_clear = gr.Radio(["Да", "Нет"],
-                                       label="Очистатить запись от шума:")        
+                                       label="Предварительная очистка от шума:")        
         t_video = gr.Video(sources=['upload'])
         t_audio = gr.Audio(type='filepath', sources=['upload'])
         btn = gr.Button(value="Сформировать стенограмму")
