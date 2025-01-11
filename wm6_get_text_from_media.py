@@ -15,15 +15,15 @@ import torchaudio
 # МОДЕЛЬ РАСПОЗНАВАНИЯ
 nltk.download('punkt')
 nltk.download('stopwords')
-model = WhisperModel("large-v2")
+whisper_model = WhisperModel("large-v2")
 
 # МОДЕЛЬ УЛУЧШЕНИЯ ЗВУКА
 # Устройство для вычислений: GPU или CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Загрузка предобученной модели Demucs (например, htdemucs)
-model_name = "htdemucs"
-separator = pretrained.get_model(model_name).to(device)
-separator.eval()
+demucs_model_name = "htdemucs"
+demucs_model = pretrained.get_model(demucs_model_name).to(device)
+demucs_model.eval()
     
 
 def process_video(t_audio_clear, t_video, t_audio):
@@ -45,7 +45,7 @@ def get_text_from_video_audio(t_audio_clear, fileName):
     audio_file.write_audiofile(fileName_input)
     if t_audio_clear == 'Да':
         fileName_postobr = clear_audio(fileName_input)
-    segments, info = model.transcribe(fileName_postobr, 
+    segments, info = whisper_model.transcribe(fileName_postobr, 
         task='transcribe',  
         language="ru",
         beam_size=5,        # Настройка декодера (выражает количество гипотез для поиска)
@@ -63,6 +63,7 @@ def get_text_from_video_audio(t_audio_clear, fileName):
     
     return sText
 
+# подавление шумов
 def clear_audio (input_file):
     
     # Загрузка и конвертация аудиофайла
@@ -70,19 +71,19 @@ def clear_audio (input_file):
     #try:
     f = AudioFile(input_file)
     wav = f.read(streams=0)
-    wav = convert_audio(wav, separator.samplerate, separator.samplerate, separator.audio_channels)
+    wav = convert_audio(wav, demucs_model.samplerate, demucs_model.samplerate, demucs_model.audio_channels)
     
     # Применение модели для разделения звуковых источников
     with torch.no_grad():
-        sources = apply_model(separator, wav[None], device=device)
+        sources = apply_model(demucs_model, wav[None], device=device)
         sources = sources[0]  # Убираем измерение batch
     
     # Сохранение всех дорожек (вокал, бас, ударные, и т.д.)
     # Нам интересен только вокал
-    for source, name in zip(sources, separator.sources):
+    for source, name in zip(sources, demucs_model.sources):
         if name == 'vocals':
             output_file = os.path.dirname(input_file) + '/' + f"{Path(input_file).stem}_{name}.wav"
-            torchaudio.save(str(output_file), source.cpu(), separator.samplerate)
+            torchaudio.save(str(output_file), source.cpu(), demucs_model.samplerate)
             return output_file
             #print(f"Сохранено: {output_file}")
 
